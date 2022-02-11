@@ -16,23 +16,36 @@
 
 package org.acme.spring.web;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+import io.quarkus.security.identity.CurrentIdentityAssociation;
+import io.quarkus.security.identity.SecurityIdentity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.security.Principal;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/greeting")
 public class GreetingController {
 
     private final GreetingBean greetingBean;
+    private final CurrentIdentityAssociation currentIdentityAssociation;
 
-    public GreetingController(GreetingBean greetingBean) {
+    public GreetingController(GreetingBean greetingBean, CurrentIdentityAssociation currentIdentityAssociation) {
         this.greetingBean = greetingBean;
+        this.currentIdentityAssociation = currentIdentityAssociation;
     }
 
+    @PreAuthorize("permitAll()")
     @GetMapping("/{name}")
     public Greeting hello(@PathVariable(name = "name") String name) {
-        return new Greeting(greetingBean.greet(name));
+        String user = Optional.ofNullable(currentIdentityAssociation.getIdentity())
+                .map(SecurityIdentity::getPrincipal)
+                .map(Principal::getName)
+                .orElse(name);
+        return new Greeting(greetingBean.greet(user));
     }
 }
